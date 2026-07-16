@@ -58,16 +58,19 @@ export default function Page() {
   }, [])
 
   const handleVapiToggle = async () => {
-    if (isCalling) {
-      vapiRef.current?.stop()
-    } else {
-      try {
-        await vapiRef.current?.start("20ab2760-46dd-466c-ae59-6e8ce397c5ec")
-      } catch (err) {
-        console.error("Vapi start failed:", err)
-      }
+  if (isCalling) {
+    vapiRef.current?.stop()
+  } else {
+    try {
+      await vapiRef.current?.start({
+        assistantId: "20ab2760-46dd-466c-ae59-6e8ce397c5ec",
+        publicKey: "396df14f-8737-4d81-9f13-40ccc15af586"
+      })
+    } catch (err) {
+      console.error("Vapi start failed:", err)
     }
   }
+}
   useEffect(() => {
     let cancelled = false
 
