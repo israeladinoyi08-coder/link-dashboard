@@ -39,39 +39,42 @@ export default function Page() {
   useEffect(() => {
     vapiRef.current = new Vapi("396df14f-8737-4d81-9f13-40ccc15af586")
 
-    vapiRef.current.on("call-start", () => setIsCalling(true))
+    // Properly bind the UI state to when the voice connection actually opens
+    vapiRef.current.on("call-start", () => {
+      setIsCalling(true)
+    })
+
     vapiRef.current.on("call-end", () => {
       setIsCalling(false)
       setVolume(0)
     })
+
     vapiRef.current.on("volume-level", (level: number) => {
       setVolume(level)
     })
+
     vapiRef.current.on("error", (err: any) => {
       console.error("Vapi error", err)
       setIsCalling(false)
     })
 
     return () => {
+      vapiRef.current?.stop()
       vapiRef.current?.removeAllListeners()
     }
   }, [])
-
   const handleVapiToggle = async () => {
     if (isCalling) {
       vapiRef.current?.stop()
     } else {
       try {
-        // 1. Force-unlock browser AudioContext
-        if (typeof window !== "undefined") {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioContextClass) {
-            const ctx = new AudioContextClass();
-            if (ctx.state === "suspended") {
-              await ctx.resume();
-            }
-          }
-        }
+        // Start call cleanly with the parameters Vapi SDK natively expects
+        await vapiRef.current?.start("20ab2760-46dd-466c-ae59-6e8ce397c5ec")
+      } catch (err) {
+        console.error("Vapi start failed:", err)
+      }
+    }
+  }
 
         // 2. Start the Vapi call
         await vapiRef.current?.start({
