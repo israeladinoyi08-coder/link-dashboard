@@ -1,57 +1,27 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import Vapi from "@vapi-ai/web"
-
-// Initialize Vapi with your credentials
-const vapi = new Vapi("396df14f-8737-4d81-9f13-40ccc15af586")
-const ASSISTANT_ID = "20ab2760-46dd-466c-ae59-6e8ce397c5ec"
+import { useEffect, useRef } from "react"
 
 type ArcReactorProps = {
   active: boolean
   alert: boolean
   analyserRef?: React.RefObject<AnalyserNode | null>
   micLive?: boolean
+  volume?: number // Receive the real-time Vapi voice volume from parent page
 }
 
-export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcReactorProps) {
+export function ArcReactor({ active, alert, analyserRef, micLive = false, volume = 0 }: ArcReactorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const activeRef = useRef(active)
   const alertRef = useRef(alert)
-  
-  // Track live call status and voice volume from Vapi
-  const [isCalling, setIsCalling] = useState(false)
-  const [vapiVolume, setVapiVolume] = useState(0)
-  const isCallingRef = useRef(false)
-  const vapiVolumeRef = useRef(0)
+  const isCallingRef = useRef(micLive)
+  const vapiVolumeRef = useRef(volume)
 
   activeRef.current = active
   alertRef.current = alert
-  isCallingRef.current = isCalling
-  vapiVolumeRef.current = vapiVolume
+  isCallingRef.current = micLive
+  vapiVolumeRef.current = volume
 
-  // 1. Hook up Vapi call listeners
-  useEffect(() => {
-    vapi.on("call-start", () => setIsCalling(true))
-    vapi.on("call-end", () => {
-      setIsCalling(false)
-      setVapiVolume(0)
-    })
-    vapi.on("volume-level", (level) => {
-      // level ranges from 0 to 1
-      setVapiVolume(level)
-    })
-    vapi.on("error", (error) => {
-      console.error("Vapi Error:", error)
-      setIsCalling(false)
-    })
-
-    return () => {
-      vapi.removeAllListeners()
-    }
-  }, [])
-
-  // 2. Handle drawing and animating the reactor core
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -96,13 +66,12 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
       ctx.clearRect(0, 0, size, size)
 
       if (isLive) {
-        // DRIVE REACTOR ANIMATION DIRECTLY WITH VAPI VOICE VOLUME
+        // DRIVE REACTOR ANIMATION DIRECTLY WITH THE PASSED VAPI VOICE VOLUME
         for (let i = 0; i < BARS; i++) {
           const spread = Math.sin(i * 0.1) * 0.2
           targets[i] = 0.15 + currentVolume * 0.85 + spread * Math.random()
         }
       } else if (useMic && analyser) {
-        // Standard dashboard browser microphone fallback
         if (!freqBuffer || freqBuffer.length !== analyser.frequencyBinCount) {
           freqBuffer = new Uint8Array(analyser.frequencyBinCount)
         }
@@ -115,7 +84,6 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
           targets[i] = 0.12 + (freqBuffer[idx] / 255) * 0.88
         }
       } else if (frame % 4 === 0) {
-        // Idle ambient state
         for (let i = 0; i < BARS; i++) {
           if (isActive) {
             const base = Math.sin(i * 0.4 + frame * 0.05) * 0.5 + 0.5
@@ -134,7 +102,6 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
       const innerR = size * 0.2
       const maxBar = size * 0.16
 
-      // Draw the audio spectrum rings
       for (let i = 0; i < BARS; i++) {
         const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2
         const len = maxBar * values[i]
@@ -151,10 +118,9 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
         ctx.stroke()
       }
 
-      // Outer rings
       ctx.save()
       ctx.translate(cx, cy)
-      ctx.rotate(frame * (isLive ? 0.015 : 0.004)) // Rotate faster when Vapi is actively calling
+      ctx.rotate(frame * (isLive ? 0.015 : 0.004))
       for (let seg = 0; seg < 3; seg++) {
         const r = innerR + maxBar + size * (0.02 + seg * 0.02)
         ctx.strokeStyle = `rgba(${glow}, ${0.5 - seg * 0.12})`
@@ -169,7 +135,6 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
       }
       ctx.restore()
 
-      // Core glow
       let energy = 0
       for (let i = 0; i < BARS; i++) energy += values[i]
       energy /= BARS
@@ -190,14 +155,12 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
       ctx.arc(cx, cy, innerR, 0, Math.PI * 2)
       ctx.fill()
 
-      // Core ring
       ctx.strokeStyle = `rgba(${core}, ${pulse})`
       ctx.lineWidth = size * 0.006
       ctx.beginPath()
       ctx.arc(cx, cy, innerR * 0.7, 0, Math.PI * 2)
       ctx.stroke()
 
-      // Center symbol
       ctx.save()
       ctx.translate(cx, cy)
       ctx.strokeStyle = `rgba(255,255,255,${0.75 * pulse})`
@@ -224,24 +187,12 @@ export function ArcReactor({ active, alert, analyserRef, micLive = false }: ArcR
     }
   }, [micLive])
 
-  const handleVapiToggle = async () => {
-    if (isCalling) {
-      vapi.stop()
-    } else {
-      try {
-        await vapi.start(ASSISTANT_ID)
-      } catch (err) {
-        console.error("Failed to initiate Vapi call:", err)
-      }
-    }
-  }
-
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[320px]">
-      <canvas ref={canvasRef} className="h-full w-full cursor-pointer" onClick={handleVapiToggle} aria-hidden="true" />
+      <canvas ref={canvasRef} className="h-full w-full" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-sans text-[10px] uppercase tracking-[0.3em] text-cyan-400/80">
-          {isCalling ? "L.I.N.K. LIVE" : "TAP TO CONNECT"}
+          {isCallingRef.current ? "L.I.N.K. LIVE" : "SYSTEM ONLINE"}
         </span>
       </div>
     </div>
