@@ -31,7 +31,6 @@ export default function Page() {
   const [clock, setClock] = useState("")
   const mic = useMicAnalyser()
   const micLive = mic.status === "live"
-
   const [isCalling, setIsCalling] = useState(false)
   const [volume, setVolume] = useState(0)
   const vapiRef = useRef<any>(null)
@@ -39,7 +38,6 @@ export default function Page() {
   useEffect(() => {
     vapiRef.current = new Vapi("396df14f-8737-4d81-9f13-40ccc15af586")
 
-    // Properly bind the UI state to when the voice connection actually opens
     vapiRef.current.on("call-start", () => {
       setIsCalling(true)
     })
@@ -63,12 +61,12 @@ export default function Page() {
       vapiRef.current?.removeAllListeners()
     }
   }, [])
+
   const handleVapiToggle = async () => {
     if (isCalling) {
       vapiRef.current?.stop()
     } else {
       try {
-        // Start call cleanly with the parameters Vapi SDK natively expects
         await vapiRef.current?.start("20ab2760-46dd-466c-ae59-6e8ce397c5ec")
       } catch (err) {
         console.error("Vapi start failed:", err)
@@ -76,22 +74,8 @@ export default function Page() {
     }
   }
 
-        // 2. Start the Vapi call
-        await vapiRef.current?.start({
-          assistantId: "20ab2760-46dd-466c-ae59-6e8ce397c5ec",
-          publicKey: "396df14f-8737-4d81-9f13-40ccc15af586"
-        });
-
-        // 3. Explicitly unmute the incoming WebRTC stream
-        vapiRef.current?.setMuted(false);
-      } catch (err) {
-        console.error("Vapi start failed:", err)
-      }
-    }
-  }
   useEffect(() => {
     let cancelled = false
-
     const poll = async () => {
       try {
         const res = await fetch("/api/command", { cache: "no-store" })
@@ -107,7 +91,6 @@ export default function Page() {
         if (!cancelled) setConnected(false)
       }
     }
-
     poll()
     const id = setInterval(poll, 1500)
     return () => {
@@ -138,10 +121,12 @@ export default function Page() {
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <div className="grid-bg pointer-events-none absolute inset-0 opacity-60" aria-hidden="true" />
       <div
-        className={cn("alert-flash pointer-events-none fixed inset-0 z-50 mix-blend-screen", alert ? "block" : "hidden")}
+        className={cn(
+          "alert-flash pointer-events-none fixed inset-0 z-50 mix-blend-screen",
+          alert ? "block" : "hidden",
+        )}
         aria-hidden="true"
       />
-
       <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-4 p-4 md:p-6">
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/25 pb-4">
@@ -205,8 +190,7 @@ export default function Page() {
                   <span className="font-mono text-sm text-foreground">KEY_0xA7</span>
                 </div>
                 <span className="flex items-center gap-1.5 font-sans text-[11px] font-semibold uppercase tracking-widest text-primary">
-                  <span className="h-2 w-2 animate-ping rounded-full bg-primary" />
-                  Active
+                  <span className="h-2 w-2 animate-ping rounded-full bg-primary" /> Active
                 </span>
               </div>
             </StatusPanel>
@@ -236,23 +220,31 @@ export default function Page() {
             </StatusPanel>
 
             <StatusPanel title="Arc Reactor // Audio Spectrum" className="flex-1">
-              <ArcReactor active={playing} alert={alert} analyserRef={mic.analyserRef} micLive={isCalling} volume={volume} />
-
+              <ArcReactor
+                active={playing}
+                alert={alert}
+                analyserRef={mic.analyserRef}
+                micLive={isCalling}
+                volume={volume}
+              />
               <div className="mt-2 flex flex-col items-center gap-2">
-              <Button
-  type="button"
-  variant={isCalling ? "default" : "outline"}
-  size="sm"
-  onClick={handleVapiToggle}
-  className={cn(
-    "w-full gap-1.5 font-mono text-xs uppercase tracking-wider",
-    isCalling && "border-cyan-500/50 bg-cyan-950/30 text-cyan-400 hover:bg-cyan-900/40"
-  )}
->
-  {isCalling ? <Mic className="h-3.5 w-3.5 animate-pulse text-cyan-400" /> : <MicOff className="h-3.5 w-3.5" />}
-  {isCalling ? "L.I.N.K. Active" : "Enable Mic"}
-</Button>
-
+                <Button
+                  type="button"
+                  variant={isCalling ? "default" : "outline"}
+                  size="sm"
+                  onClick={handleVapiToggle}
+                  className={cn(
+                    "w-full gap-1.5 font-mono text-xs uppercase tracking-wider",
+                    isCalling && "border-cyan-500/50 bg-cyan-950/30 text-cyan-400 hover:bg-cyan-900/40",
+                  )}
+                >
+                  {isCalling ? (
+                    <Mic className="h-3.5 w-3.5 animate-pulse text-cyan-400" />
+                  ) : (
+                    <MicOff className="h-3.5 w-3.5" />
+                  )}
+                  {isCalling ? "L.I.N.K. Active" : "Enable Mic"}
+                </Button>
                 <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
                   {micLive ? (
                     <span className="flex items-center justify-center gap-1.5 text-primary">
