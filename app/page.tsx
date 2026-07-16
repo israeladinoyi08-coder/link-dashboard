@@ -58,19 +58,34 @@ export default function Page() {
   }, [])
 
   const handleVapiToggle = async () => {
-  if (isCalling) {
-    vapiRef.current?.stop()
-  } else {
-    try {
-      await vapiRef.current?.start({
-        assistantId: "20ab2760-46dd-466c-ae59-6e8ce397c5ec",
-        publicKey: "396df14f-8737-4d81-9f13-40ccc15af586"
-      })
-    } catch (err) {
-      console.error("Vapi start failed:", err)
+    if (isCalling) {
+      vapiRef.current?.stop()
+    } else {
+      try {
+        // 1. Force-unlock browser AudioContext
+        if (typeof window !== "undefined") {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            if (ctx.state === "suspended") {
+              await ctx.resume();
+            }
+          }
+        }
+
+        // 2. Start the Vapi call
+        await vapiRef.current?.start({
+          assistantId: "20ab2760-46dd-466c-ae59-6e8ce397c5ec",
+          publicKey: "396df14f-8737-4d81-9f13-40ccc15af586"
+        });
+
+        // 3. Explicitly unmute the incoming WebRTC stream
+        vapiRef.current?.setMuted(false);
+      } catch (err) {
+        console.error("Vapi start failed:", err)
+      }
     }
   }
-}
   useEffect(() => {
     let cancelled = false
 
