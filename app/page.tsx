@@ -33,13 +33,20 @@ export default function Page() {
   const micLive = mic.status === "live"
 
   const [isCalling, setIsCalling] = useState(false)
+  const [volume, setVolume] = useState(0)
   const vapiRef = useRef<any>(null)
 
   useEffect(() => {
     vapiRef.current = new Vapi("396df14f-8737-4d81-9f13-40ccc15af586")
-    
+
     vapiRef.current.on("call-start", () => setIsCalling(true))
-    vapiRef.current.on("call-end", () => setIsCalling(false))
+    vapiRef.current.on("call-end", () => {
+      setIsCalling(false)
+      setVolume(0)
+    })
+    vapiRef.current.on("volume-level", (level: number) => {
+      setVolume(level)
+    })
     vapiRef.current.on("error", (err: any) => {
       console.error("Vapi error", err)
       setIsCalling(false)
@@ -208,7 +215,7 @@ export default function Page() {
             </StatusPanel>
 
             <StatusPanel title="Arc Reactor // Audio Spectrum" className="flex-1">
-              <ArcReactor active={playing} alert={alert} analyserRef={mic.analyserRef} micLive={isCalling} />
+              <ArcReactor active={playing} alert={alert} analyserRef={mic.analyserRef} micLive={isCalling} volume={volume} />
 
               <div className="mt-2 flex flex-col items-center gap-2">
               <Button
