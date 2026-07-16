@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Vapi from "@vapi-ai/web"
 import { Activity, Cpu, KeyRound, TerminalSquare, AudioLines, ShieldAlert, Mic, MicOff } from "lucide-react"
 import { StatusPanel } from "@/components/status-panel"
 import { ArcReactor } from "@/components/arc-reactor"
@@ -31,7 +32,35 @@ export default function Page() {
   const mic = useMicAnalyser()
   const micLive = mic.status === "live"
 
-  // Poll the command API every 1.5s and react when a newer timestamp arrives.
+  const [isCalling, setIsCalling] = useState(false)
+  const vapiRef = useRef<any>(null)
+
+  useEffect(() => {
+    vapiRef.current = new Vapi("396df14f-8737-4d81-9f13-40ccc15af586")
+    
+    vapiRef.current.on("call-start", () => setIsCalling(true))
+    vapiRef.current.on("call-end", () => setIsCalling(false))
+    vapiRef.current.on("error", (err: any) => {
+      console.error("Vapi error", err)
+      setIsCalling(false)
+    })
+
+    return () => {
+      vapiRef.current?.removeAllListeners()
+    }
+  }, [])
+
+  const handleVapiToggle = async () => {
+    if (isCalling) {
+      vapiRef.current?.stop()
+    } else {
+      try {
+        await vapiRef.current?.start("20ab2760-46dd-466c-ae59-6e8ce397c5ec")
+      } catch (err) {
+        console.error("Vapi start failed:", err)
+      }
+    }
+  }
   useEffect(() => {
     let cancelled = false
 
@@ -179,25 +208,22 @@ export default function Page() {
             </StatusPanel>
 
             <StatusPanel title="Arc Reactor // Audio Spectrum" className="flex-1">
-              <ArcReactor active={playing} alert={alert} analyserRef={mic.analyserRef} micLive={micLive} />
+              <ArcReactor active={playing} alert={alert} analyserRef={mic.analyserRef} micLive={isCalling} />
 
               <div className="mt-2 flex flex-col items-center gap-2">
-                <Button
-                  type="button"
-                  variant={micLive ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => (micLive ? mic.stop() : mic.start())}
-                  disabled={mic.status === "requesting"}
-                  className="font-mono text-[11px] uppercase tracking-widest"
-                  aria-pressed={micLive}
-                >
-                  {micLive ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
-                  {mic.status === "requesting"
-                    ? "Requesting..."
-                    : micLive
-                      ? "Listening"
-                      : "Enable Mic"}
-                </Button>
+              <Button
+  type="button"
+  variant={isCalling ? "default" : "outline"}
+  size="sm"
+  onClick={handleVapiToggle}
+  className={cn(
+    "w-full gap-1.5 font-mono text-xs uppercase tracking-wider",
+    isCalling && "border-cyan-500/50 bg-cyan-950/30 text-cyan-400 hover:bg-cyan-900/40"
+  )}
+>
+  {isCalling ? <Mic className="h-3.5 w-3.5 animate-pulse text-cyan-400" /> : <MicOff className="h-3.5 w-3.5" />}
+  {isCalling ? "L.I.N.K. Active" : "Enable Mic"}
+</Button>
 
                 <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
                   {micLive ? (
