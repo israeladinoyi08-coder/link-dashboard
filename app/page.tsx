@@ -37,7 +37,7 @@ export default function Page() {
   const vapiRef = useRef<any>(null)
 
   useEffect(() => {
-    vapiRef.current = new Vapi("396df14f-8737-4d81-9f13-40ccc15af586")
+    vapiRef.current = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || "")
 
     vapiRef.current.on("call-start", () => {
       setIsCalling(true)
